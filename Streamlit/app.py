@@ -122,25 +122,42 @@ section[data-testid="stSidebar"] {
 }
 
 /* 横スクロール対応（メトリクス行） */
-div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stHorizontalBlock"] {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    padding-bottom: 15px;
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stHorizontalBlock"],
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stColumns"],
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="element-container"] > div[data-testid="stHorizontalBlock"],
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="element-container"] > div[data-testid="stColumns"] {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    padding-bottom: 15px !important;
+    display: flex !important;
 }
-div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stHorizontalBlock"]::-webkit-scrollbar {
+
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stHorizontalBlock"]::-webkit-scrollbar,
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stColumns"]::-webkit-scrollbar,
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="element-container"] > div::-webkit-scrollbar {
     height: 8px;
 }
-div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stHorizontalBlock"]::-webkit-scrollbar-track {
+
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stHorizontalBlock"]::-webkit-scrollbar-track,
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stColumns"]::-webkit-scrollbar-track,
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="element-container"] > div::-webkit-scrollbar-track {
     background: rgba(255,255,255,0.05);
     border-radius: 4px;
 }
-div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stHorizontalBlock"]::-webkit-scrollbar-thumb {
+
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stHorizontalBlock"]::-webkit-scrollbar-thumb,
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stColumns"]::-webkit-scrollbar-thumb,
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="element-container"] > div::-webkit-scrollbar-thumb {
     background: rgba(255,255,255,0.2);
     border-radius: 4px;
 }
-div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-    min-width: 320px;
-    flex: 0 0 auto;
+
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"],
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stColumns"] > div[data-testid="column"],
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="element-container"] > div > div[data-testid="column"] {
+    min-width: 320px !important;
+    width: 320px !important;
+    flex: 0 0 auto !important;
 }
 </style>
 """, unsafe_allow_html=True)
