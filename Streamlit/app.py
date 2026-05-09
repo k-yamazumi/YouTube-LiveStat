@@ -279,9 +279,7 @@ def render_sidebar():
         if st.session_state.use_sheets:
             with st.expander("スプレッドシート設定", expanded=True):
                 if not has_sheets_credentials():
-                    st.warning("⚠️ サービスアカウント認証情報が未設定です。Streamlit Cloud の Secrets に `[gcp_service_account]` を設定してください。")
-                else:
-                    st.success("✅ サービスアカウント認証OK")
+                    st.warning("⚠️ サービスアカウント認証情報が未設定です。")
                 
                 st.session_state.spreadsheet_url = st.text_input(
                     "スプレッドシートURL",
@@ -307,17 +305,13 @@ def render_sidebar():
                 # SMTP認証情報はsecretsから取得
                 has_smtp = False
                 try:
-                    has_smtp = bool(st.secrets.get("SMTP_EMAIL")) and bool(st.secrets.get("SMTP_PASSWORD"))
+                    if "SMTP_EMAIL" in st.secrets and "SMTP_PASSWORD" in st.secrets:
+                        has_smtp = bool(st.secrets["SMTP_EMAIL"]) and bool(st.secrets["SMTP_PASSWORD"])
                 except Exception:
                     pass
                 if not has_smtp:
                     st.warning("⚠️ SMTP認証情報が未設定です。")
 
-                st.session_state.email_sender_name = st.text_input(
-                    "送信元の表示名",
-                    value=st.session_state.email_sender_name,
-                    disabled=st.session_state.monitoring,
-                )
                 st.session_state.email_recipients = st.text_area(
                     "送信先（1行1アドレス）",
                     value=st.session_state.email_recipients,
@@ -397,8 +391,9 @@ def fetch_all_stats():
         smtp_email = ""
         smtp_password = ""
         try:
-            smtp_email = st.secrets.get("SMTP_EMAIL", "")
-            smtp_password = st.secrets.get("SMTP_PASSWORD", "")
+            if "SMTP_EMAIL" in st.secrets and "SMTP_PASSWORD" in st.secrets:
+                smtp_email = st.secrets["SMTP_EMAIL"]
+                smtp_password = st.secrets["SMTP_PASSWORD"]
         except Exception:
             pass
 
