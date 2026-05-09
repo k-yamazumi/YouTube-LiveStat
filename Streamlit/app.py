@@ -150,12 +150,6 @@ div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-tes
 # Session State 初期化
 # ─────────────────────────────────────────────
 def init_session_state():
-    default_email = ""
-    try:
-        default_email = st.secrets.get("SMTP_EMAIL", "")
-    except Exception:
-        pass
-
     defaults = {
         "monitors": {},          # {name: {"url": str, "video_id": str, "title": str}}
         "monitoring": False,     # 監視中かどうか
@@ -172,8 +166,10 @@ def init_session_state():
         "sheets_header_written": False,
         # メール設定
         "use_email": False,
-        "email_recipients": default_email,
+        "email_sender_name": "YouTube LiveStat",
+        "email_recipients": "",
         "email_interval": 15,  # 分
+        "email_error": None,
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -233,7 +229,7 @@ def render_sidebar():
         with st.form("add_monitor", clear_on_submit=True):
             name = st.text_input("名前", placeholder="例: チャンネルA")
             url = st.text_input("YouTube URL", placeholder="https://youtube.com/watch?v=...")
-            submitted = st.form_submit_button("追加", use_container_width=True)
+            submitted = st.form_submit_button("追加", width="stretch")
             
             if submitted:
                 if not name:
@@ -316,9 +312,12 @@ def render_sidebar():
                     pass
                 if not has_smtp:
                     st.warning("⚠️ SMTP認証情報が未設定です。")
-                else:
-                    st.success("✅ SMTP認証OK")
 
+                st.session_state.email_sender_name = st.text_input(
+                    "送信元の表示名",
+                    value=st.session_state.email_sender_name,
+                    disabled=st.session_state.monitoring,
+                )
                 st.session_state.email_recipients = st.text_area(
                     "送信先（1行1アドレス）",
                     value=st.session_state.email_recipients,
@@ -332,6 +331,9 @@ def render_sidebar():
                     step=1,
                     disabled=st.session_state.monitoring,
                 )
+                
+                if st.session_state.get("email_error"):
+                    st.error(f"メール送信エラー: {st.session_state.email_error}")
 
 
 # ─────────────────────────────────────────────
@@ -420,15 +422,23 @@ def fetch_all_stats():
                         email_data.append({"name": name, "stats": stats})
                     
                     try:
-                        send_report_email(
+                        res = send_report_email(
                             smtp_email,
                             smtp_password,
                             recipients,
                             email_data,
+                            sender_name=st.session_state.email_sender_name,
                         )
+                        if res.get("status") == "error":
+                            st.session_state.email_error = res.get("message")
+                        else:
+                            st.session_state.email_error = None
+                        
+                        # 成功・失敗にかかわらず、送信試行した時刻を記録（指定間隔を担保する）
                         st.session_state.last_email_time = now
-                    except Exception:
-                        pass  # メール送信失敗は無視
+                    except Exception as e:
+                        st.session_state.email_error = str(e)
+                        st.session_state.last_email_time = now
     
     st.session_state.last_fetch_time = now
 
@@ -515,7 +525,7 @@ def render_main():
     with col_start:
         if st.button(
             "▶️ 監視開始" if not st.session_state.monitoring else "⏸️ 監視中...",
-            use_container_width=True,
+            width="stretch",
             type="primary",
             disabled=st.session_state.monitoring,
         ):
@@ -531,7 +541,7 @@ def render_main():
     with col_stop:
         if st.button(
             "⏹️ 監視終了",
-            use_container_width=True,
+            width="stretch",
             disabled=not st.session_state.monitoring,
         ):
             st.session_state.monitoring = False
@@ -630,7 +640,7 @@ def render_main():
             data=csv_data.encode("utf-8-sig"),  # Excel対応BOM付きUTF-8
             file_name=f"youtube_livestat_{datetime.now(JST).strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv",
-            use_container_width=False,
+            width="content",
         )
         
         with st.expander("プレビュー（最新10件）"):
