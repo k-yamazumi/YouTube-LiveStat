@@ -305,10 +305,13 @@ def render_sidebar():
                 # SMTP認証情報はsecretsから取得
                 has_smtp = False
                 try:
-                    if "SMTP_EMAIL" in st.secrets and "SMTP_PASSWORD" in st.secrets:
-                        has_smtp = bool(st.secrets["SMTP_EMAIL"]) and bool(st.secrets["SMTP_PASSWORD"])
+                    email = st.secrets["SMTP_EMAIL"]
+                    pw = st.secrets["SMTP_PASSWORD"]
+                    if email and pw:
+                        has_smtp = True
                 except Exception:
                     pass
+                
                 if not has_smtp:
                     st.warning("⚠️ SMTP認証情報が未設定です。")
 
@@ -391,9 +394,8 @@ def fetch_all_stats():
         smtp_email = ""
         smtp_password = ""
         try:
-            if "SMTP_EMAIL" in st.secrets and "SMTP_PASSWORD" in st.secrets:
-                smtp_email = st.secrets["SMTP_EMAIL"]
-                smtp_password = st.secrets["SMTP_PASSWORD"]
+            smtp_email = st.secrets["SMTP_EMAIL"]
+            smtp_password = st.secrets["SMTP_PASSWORD"]
         except Exception:
             pass
 
