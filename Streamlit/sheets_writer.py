@@ -98,7 +98,6 @@ def build_headers(monitor_names: list[str]) -> list[str]:
         headers.extend([
             f"同時視聴者数({name})",
             f"高評価数({name})",
-            f"コメント数({name})",
             f"総視聴回数({name})",
         ])
     return headers
@@ -113,7 +112,6 @@ def build_row(timestamp: str, stats_list: list[dict]) -> list:
         row.extend([
             stats.get("concurrent_viewers", ""),
             stats.get("like_count", ""),
-            stats.get("comment_count", ""),
             stats.get("view_count", ""),
         ])
     return row

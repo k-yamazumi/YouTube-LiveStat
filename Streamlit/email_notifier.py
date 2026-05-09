@@ -4,6 +4,7 @@
 """
 
 import smtplib
+import base64
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
@@ -22,6 +23,7 @@ def send_report_email(
     sender_name: str = "YouTube LiveStat 自動通知",
     smtp_server: str = "smtp.gmail.com",
     smtp_port: int = 587,
+    image_bytes: Optional[bytes] = None,
 ) -> dict:
     """
     監視レポートをメールで送信する。
@@ -34,6 +36,7 @@ def send_report_email(
         sender_name: 送信元の表示名
         smtp_server: SMTPサーバー
         smtp_port: SMTPポート
+        image_bytes: グラフ画像のバイトデータ
     
     Returns:
         dict: {"status": "ok"} or {"status": "error", "message": "..."}
@@ -41,8 +44,13 @@ def send_report_email(
     try:
         now = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
         
+        # 画像をBase64エンコード
+        image_base64 = None
+        if image_bytes:
+            image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+        
         # HTML メール本文を作成
-        html = _build_html_report(stats_data, now)
+        html = _build_html_report(stats_data, now, image_base64=image_base64)
         
         msg = MIMEMultipart("alternative")
         msg["Subject"] = f"📊 YouTubeLive 監視レポート ({now})"
@@ -71,7 +79,7 @@ def send_report_email(
         return {"status": "error", "message": str(e)}
 
 
-def _build_html_report(stats_data: list[dict], timestamp: str) -> str:
+def _build_html_report(stats_data: list[dict], timestamp: str, image_base64: str | None = None) -> str:
     """HTML形式のレポートを生成する。"""
     rows_html = ""
     for i, entry in enumerate(stats_data):
@@ -104,7 +112,6 @@ def _build_html_report(stats_data: list[dict], timestamp: str) -> str:
             <td style="padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #333333; font-weight: bold;">{name}</td>
             <td style="padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #d32f2f; font-weight: bold; text-align: right;">{viewers_str}</td>
             <td style="padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #1976d2; text-align: right;">{likes_str}</td>
-            <td style="padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #388e3c; text-align: right;">{comments_str}</td>
             <td style="padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #f57c00; text-align: right;">{views_str}</td>
         </tr>
         """
@@ -134,7 +141,6 @@ def _build_html_report(stats_data: list[dict], timestamp: str) -> str:
                                             <th style="padding: 12px 15px; border-bottom: 2px solid #dddddd; color: #555555; text-align: left; font-weight: bold; background-color: #f4f6f8;">名前</th>
                                             <th style="padding: 12px 15px; border-bottom: 2px solid #dddddd; color: #555555; text-align: right; font-weight: bold; background-color: #f4f6f8;">👀 視聴者数</th>
                                             <th style="padding: 12px 15px; border-bottom: 2px solid #dddddd; color: #555555; text-align: right; font-weight: bold; background-color: #f4f6f8;">👍 高評価</th>
-                                            <th style="padding: 12px 15px; border-bottom: 2px solid #dddddd; color: #555555; text-align: right; font-weight: bold; background-color: #f4f6f8;">💬 コメント</th>
                                             <th style="padding: 12px 15px; border-bottom: 2px solid #dddddd; color: #555555; text-align: right; font-weight: bold; background-color: #f4f6f8;">📺 総視聴回数</th>
                                         </tr>
                                     </thead>
@@ -144,11 +150,19 @@ def _build_html_report(stats_data: list[dict], timestamp: str) -> str:
                                 </table>
                             </td>
                         </tr>
+                        {f'''
+                        <tr>
+                            <td style="padding: 20px 30px; background-color: #ffffff; text-align: center; border-top: 1px solid #eeeeee;">
+                                <h3 style="margin: 0 0 10px 0; color: #555555; font-size: 16px; text-align: left;">📈 同時視聴者数 推移グラフ</h3>
+                                <img src="data:image/png;base64,{image_base64}" alt="グラフ" style="max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eeeeee;">
+                            </td>
+                        </tr>
+                        ''' if image_base64 else ''}
                         <tr>
                             <td style="padding: 20px 30px; background-color: #fafafa; border-top: 1px solid #eeeeee; text-align: center;">
                                 <p style="margin: 0; color: #999999; font-size: 12px;">
                                     このメールはアプリから自動送信されました。<br>
-                                    https://ytlivestat.streamlit.app/
+                                    <a href="https://ytlivestat.streamlit.app/" target="_blank" style="color: #1976d2; text-decoration: none;">https://ytlivestat.streamlit.app/</a>
                                 </p>
                             </td>
                         </tr>
@@ -187,7 +201,6 @@ def _build_text_report(stats_data: list[dict], timestamp: str) -> str:
         lines.append(f"\n【{name}】")
         lines.append(f"  👀 同時視聴者数: {viewers_str}")
         lines.append(f"  👍 高評価数: {likes_str}")
-        lines.append(f"  💬 コメント数: {comments_str}")
         lines.append(f"  📺 総視聴回数: {views_str}")
     
     lines.append("\n" + "=" * 50)

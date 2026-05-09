@@ -152,12 +152,13 @@ div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-tes
     border-radius: 4px;
 }
 
-div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"],
-div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stColumns"] > div[data-testid="column"],
-div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="element-container"] > div > div[data-testid="column"] {
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stHorizontalBlock"] > div,
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="stColumns"] > div,
+div[data-testid="element-container"]:has(#monitor-metrics-scroll) + div[data-testid="element-container"] > div > div {
     min-width: 320px !important;
+    max-width: 320px !important;
     width: 320px !important;
-    flex: 0 0 auto !important;
+    flex: 0 0 320px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -185,7 +186,7 @@ def init_session_state():
         "use_email": False,
         "email_sender_name": "YouTube LiveStat",
         "email_recipients": "",
-        "email_interval": 15,  # 分
+        "email_interval": 20,  # 分
         "email_error": None,
     }
     for key, val in defaults.items():
@@ -301,7 +302,7 @@ def render_sidebar():
                 st.session_state.spreadsheet_url = st.text_input(
                     "スプレッドシートURL",
                     value=st.session_state.spreadsheet_url,
-                    help="サービスアカウントのメールアドレスと共有済みのスプレッドシートURL",
+                    help="ℹ️ 共有設定で「リンクを知っている全員」を「編集者」に設定してください",
                     disabled=st.session_state.monitoring,
                 )
                 st.session_state.sheet_name = st.text_input(
@@ -309,7 +310,6 @@ def render_sidebar():
                     value=st.session_state.sheet_name,
                     disabled=st.session_state.monitoring,
                 )
-                st.caption("ℹ️ スプレッドシートの共有設定で「リンクを知っている全員」を「編集者」に設定してください。")
 
         # ─── メール設定（トグル） ───
         st.session_state.use_email = st.toggle(
@@ -436,12 +436,16 @@ def fetch_all_stats():
                         email_data.append({"name": name, "stats": stats})
                     
                     try:
+                        # グラフ画像を生成
+                        chart_img = generate_chart_image(names)
+                        
                         res = send_report_email(
                             smtp_email,
                             smtp_password,
                             recipients,
                             email_data,
                             sender_name=st.session_state.email_sender_name,
+                            image_bytes=chart_img,
                         )
                         if res.get("status") == "error":
                             st.session_state.email_error = res.get("message")
@@ -519,6 +523,72 @@ def render_chart(selected_names: list[str], metric: str, title: str, y_label: st
     st.plotly_chart(fig, use_container_width=True)
 
 
+def generate_chart_image(names: list[str]) -> bytes | None:
+    """メール添付用に同時視聴者数グラフをPNG画像バイトとして生成する"""
+    fig = go.Figure()
+    has_data = False
+    
+    for i, name in enumerate(names):
+        history = st.session_state.history.get(name, [])
+        if not history:
+            continue
+        
+        times = [h["time"] for h in history]
+        values = [h.get("concurrent_viewers") for h in history]
+        
+        # データが1つでもあればフラグを立てる
+        if any(v is not None for v in values):
+            has_data = True
+        
+        color = COLORS[i % len(COLORS)]
+        
+        fig.add_trace(go.Scatter(
+            x=times,
+            y=values,
+            mode="lines+markers",
+            name=name,
+            line=dict(color=color, width=2.5),
+            marker=dict(size=5, color=color),
+            connectgaps=False,
+        ))
+    
+    if not has_data:
+        return None
+    
+    # メール用のスタイル（白背景・読みやすい配色）
+    fig.update_layout(
+        title=dict(text="同時視聴者数 推移", font=dict(size=18, color="#333")),
+        xaxis=dict(
+            title="時刻",
+            gridcolor="rgba(0,0,0,0.1)",
+            color="#555",
+        ),
+        yaxis=dict(
+            title="視聴者数",
+            gridcolor="rgba(0,0,0,0.1)",
+            color="#555",
+            rangemode="tozero",
+        ),
+        plot_bgcolor="#ffffff",
+        paper_bgcolor="#ffffff",
+        font=dict(family="Helvetica, Arial, sans-serif", color="#333"),
+        legend=dict(
+            bgcolor="#ffffff",
+            bordercolor="#dddddd",
+            borderwidth=1,
+            font=dict(color="#333"),
+        ),
+        width=700,
+        height=400,
+        margin=dict(l=60, r=30, t=50, b=60),
+    )
+    
+    try:
+        return fig.to_image(format="png", scale=2)
+    except Exception:
+        return None
+
+
 # ─────────────────────────────────────────────
 # メインUI
 # ─────────────────────────────────────────────
@@ -538,7 +608,7 @@ def render_main():
     
     with col_start:
         if st.button(
-            "▶️ 監視開始" if not st.session_state.monitoring else "⏸️ 監視中...",
+            "▶️ 監視開始" if not st.session_state.monitoring else "🔴 監視中...",
             width="stretch",
             type="primary",
             disabled=st.session_state.monitoring,
@@ -588,13 +658,8 @@ def render_main():
                     
                     st.metric("👀 同時視聴者数", viewer_str, delta=f"最終取得: {last_time}", delta_color="off")
                     
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        likes = latest.get("like_count")
-                        st.metric("👍 高評価", f"{likes:,}" if likes is not None else "—")
-                    with c2:
-                        comments = latest.get("comment_count")
-                        st.metric("💬 コメント", f"{comments:,}" if comments is not None else "—")
+                    likes = latest.get("like_count")
+                    st.metric("👍 高評価", f"{likes:,}" if likes is not None else "—")
                     
                     if latest.get("error"):
                         st.caption(f"⚠️ {latest['error']}")
@@ -619,16 +684,16 @@ def render_main():
         
         if selected:
             # タブでメトリクスを切り替え
-            tab_viewers, tab_likes, tab_comments = st.tabs([
-                "👀 同時視聴者数", "👍 高評価数", "💬 コメント数"
+            tab_viewers, tab_likes, tab_views = st.tabs([
+                "👀 同時視聴者数", "👍 高評価数", "📺 総視聴回数"
             ])
             
             with tab_viewers:
                 render_chart(selected, "concurrent_viewers", "同時視聴者数", "視聴者数")
             with tab_likes:
                 render_chart(selected, "like_count", "高評価数", "高評価")
-            with tab_comments:
-                render_chart(selected, "comment_count", "コメント数", "コメント")
+            with tab_views:
+                render_chart(selected, "view_count", "総視聴回数", "視聴回数")
 
     # ─── CSV出力 ───
     if st.session_state.all_rows:
