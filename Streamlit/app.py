@@ -6,8 +6,11 @@ Streamlit Cloud で公開するアプリケーション
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import time
+
+# 日本時間のタイムゾーンを設定
+JST = timezone(timedelta(hours=+9), 'JST')
 import io
 import csv
 
@@ -348,7 +351,7 @@ def fetch_all_stats():
     video_ids = [monitors[n]["video_id"] for n in names]
     
     results = fetch_multiple_video_stats(video_ids, api_key)
-    now = datetime.now()
+    now = datetime.now(JST)
     
     stats_for_row = []
     
@@ -625,7 +628,7 @@ def render_main():
         st.download_button(
             label="📥 CSVダウンロード",
             data=csv_data.encode("utf-8-sig"),  # Excel対応BOM付きUTF-8
-            file_name=f"youtube_livestat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            file_name=f"youtube_livestat_{datetime.now(JST).strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv",
             use_container_width=False,
         )

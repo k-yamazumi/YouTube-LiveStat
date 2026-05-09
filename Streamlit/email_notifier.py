@@ -7,7 +7,10 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+# 日本時間のタイムゾーンを設定
+JST = timezone(timedelta(hours=+9), 'JST')
 
 
 def send_report_email(
@@ -33,7 +36,7 @@ def send_report_email(
         dict: {"status": "ok"} or {"status": "error", "message": "..."}
     """
     try:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
         
         # HTML メール本文を作成
         html = _build_html_report(stats_data, now)
